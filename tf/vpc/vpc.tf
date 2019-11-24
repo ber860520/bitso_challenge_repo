@@ -41,18 +41,36 @@ resource "aws_route_table" "pub_route_table"{
 	}
 }
 
+resource "aws_route_table_association" "pub_route_table"{
+	subnet_id = aws_subnet.pub_app_subnet.id
+	route_table_id = aws_route_table.pub_route_table.id
+}
+
 
 /*
 Private resources
 */
 
 resource "aws_subnet" "priv_db_subnet"{
-vpc_id = aws_vpc.prod-vpc.id
-cidr_block = "10.0.2.0/24"
-map_public_ip_on_launch = "true"
-tags= {
-    Name = "priv_db_subnet"
-}
+	vpc_id = aws_vpc.prod-vpc.id
+	cidr_block = "10.0.2.0/24"
+	map_public_ip_on_launch = "true"
+	tags= {
+	    Name = "priv_db_subnet"
+	}
 }
 
+resource "aws_route_table" "priv_route_table"{
+        vpc_id = aws_vpc.prod-vpc.id
+        route{
+                cidr_block = "0.0.0./0"
+        }
+        tags ={
+                Name = "Private subnet"
+        }
+}
 
+resource "aws_route_table_association" "priv_route_table"{
+	subnet_id = aws_subnet.priv_db_subnet.id
+	route_table_id = aws_route_table.priv_route_table.id
+}
