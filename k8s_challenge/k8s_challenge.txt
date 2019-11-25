@@ -9,19 +9,43 @@ Warning FailedScheduling 3m (x1443 over 13m) default-scheduler 0/24 nodes are av
 
 ======Troubleshooting steps for the "a" :=======
 
+SCENARIO
 what I understand from this scenario:
 THere are 24 nodes in total, and the logs are stating no node matches the needed CPU share for the pods.
-also, the node selector of 18 nodes for the pods are not fitting.
+also, the node selector for the pods is not fitting any of the available nodes.
+so there are a couple possible possible solutions in order to get resources for this app.
+
+SOLUTIONS
+- Restart the Master, first restart the scheduler
+It happened to me once, where even with available resources on the nodes, the PODs were not allocatted, this seems to be a bug and the workaround is a restart of the scheduler or the master processes.
+- Restart the app 
+Restarting the app will kill the hung containers from the java app, by doing this CPU and mem will get free and we can try to allocate the app.
+- Adding a new worker
+If the restart doesnt help, we will need to boostrap a new node in order to get the app up and running again.
+
 
 Steps:
 1.- Notify stackholders and start the outage/incident process
 2.- Troubleshooting the issue
 
-#First we should try a restart of the Pods for the java app, this can free CPU and Mem.
+#List the nodes to check the available resources, not only CPU, Mem or storage but all the details, to check if indeed we have available resources 
+        kubectl describe nodes |less
+#If indeed we have enough resourced, perform a scheduler restart as a workaround.
+	#if it is configured as a process
+	kill kubescheduler-PID
+	#start the process again
+	kube-scheduler --bind-address=127.0.0.1 --kubeconfig=/etc/kubernetes/scheduler.conf --leader-elect=true
+	#if the scheduler is configured as a POD
+	kubectl --namespace=kube-system get deployment kube-scheduler -o yaml
+	#to trigger the kube-scheduler restart pod update the manifest
+	vim /etc/kubernetes/manifests/kube-scheduler.yaml
+
+
+#If the there are indeed no resources available we should try a restart of the Pods for the java app, this can free CPU and Mem.
 	kubectl rollout restart deployment my_java_app
 
 
-
+#If there are resources but the labels dont match, we need to relabel the nodes with the needed selectors
 #Getting the label details of the pods with Failed or Pending state
 	kubectl get pods --show-labels |grep -E "Pending|Failed"
 
@@ -30,13 +54,19 @@ Steps:
 #List the nodes to check the resources available, not only CPU, Mem or storage but all the details, to decide which one to tag with the needed labels
 	kubectl describe nodes |less
 
-
+#Put the new labels in the node
 	kubectl label nodes kubernetes-node-3 disktype=ssd
 
-3.- Created a detailed postmorten
+
+#if none of the above solutions, in order to get the service back up and running, a new worker needs to be provissioned
+	Increase the number of workers via TF or Chef
+
+
+3.- Create a detailed postmorten
 4.- Share the Postmorten details with the team
-5.- Work on the action items to avoid this in the future.
+5.- Work on the action items to avoid this to happen in the future.
 
 ======What would you do to avoid this happen again?======
-1.- Create preventive monitoring using Prometheus/Alertmanager
-2.- Standardize CPU and Memory limits for Pods
+1.- UPgrade the K8S version and its componenets.
+2.- Create preventive monitoring using Prometheus/Alertmanager
+3.- Standardize CPU and Memory limits for Pods
