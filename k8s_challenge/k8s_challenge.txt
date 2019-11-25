@@ -1,0 +1,42 @@
+2. We have a Java application running on a Kubernetes cluster, one day dies and 
+cannot start again. We have a lot of complaining users… 
+a. What would you do to restore the service?  
+    i. Write the sets of command you running in each step 
+b. What would you do to avoid this happen again? 
+
+Logs: 
+Warning FailedScheduling 3m (x1443 over 13m) default-scheduler 0/24 nodes are available: 18 node(s) didn't match node selector, 24 Insufficient cpu. 
+
+======Troubleshooting steps for the "a" :=======
+
+what I understand from this scenario:
+THere are 24 nodes in total, and the logs are stating no node matches the needed CPU share for the pods.
+also, the node selector of 18 nodes for the pods are not fitting.
+
+Steps:
+1.- Notify stackholders and start the outage/incident process
+2.- Troubleshooting the issue
+
+#First we should try a restart of the Pods for the java app, this can free CPU and Mem.
+	kubectl rollout restart deployment my_java_app
+
+
+
+#Getting the label details of the pods with Failed or Pending state
+	kubectl get pods --show-labels |grep -E "Pending|Failed"
+
+#Once we know what labels are set for the node selector, nodes need to be checked 
+	kubectl get nodes
+#List the nodes to check the resources available, not only CPU, Mem or storage but all the details, to decide which one to tag with the needed labels
+	kubectl describe nodes |less
+
+
+	kubectl label nodes kubernetes-node-3 disktype=ssd
+
+3.- Created a detailed postmorten
+4.- Share the Postmorten details with the team
+5.- Work on the action items to avoid this in the future.
+
+======What would you do to avoid this happen again?======
+1.- Create preventive monitoring using Prometheus/Alertmanager
+2.- Standardize CPU and Memory limits for Pods
